@@ -1,3 +1,5 @@
+a <- 3
+
 sp<-read.csv('sp500.csv')
 ny<-read.csv('nyse.csv')
 nas<-read.csv('nasdaq.csv')
