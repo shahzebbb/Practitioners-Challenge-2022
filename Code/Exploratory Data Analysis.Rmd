@@ -1,0 +1,66 @@
+---
+title: "Exploratory Data Analysis"
+output: html_notebook
+---
+
+### **Reading and cleaning data**
+
+First, we input our stock data.
+
+Our stock data consists of the following indices between 2000 and 2021:
+
+-   S&P500
+
+-   NASDAQ
+
+-   NYSE100
+
+```{r}
+sp<-read.csv('Data/sp500.csv')
+ny<-read.csv('Data/nyse.csv')
+nas<-read.csv('Data/nasdaq.csv')
+```
+
+Now we will change the 'caldt' column to the Date format in order to plot the 
+time series for each index:
+
+```{r}
+sp$caldt<-as.Date(sp$caldt, format="%d/%m/%Y")
+ny$caldt<-as.Date(ny$caldt, format="%d/%m/%Y")
+nas$caldt<-as.Date(nas$caldt, format="%d/%m/%Y")
+
+str(sp)
+str(ny)
+str(nas)
+```
+### **Initial Plots**
+
+We will start off by plotting a basic time series for each index to get an idea
+of what our data looks like:
+
+```{r}
+plot(sp, type='l')
+plot(ny, type='l')
+plot(nas, type='l')
+```
+They all follow the same basic pattern, which is what we would expect, with the iconic fall in stock-price during the 2008-2009 period of the 'Great Recession'.
+
+However, the stock price directly does not give us much information. Instead, we will take at the **daily log stock returns**.
+
+```{r}
+sp_logret <- diff(log(sp$spindx))
+ny_logret <- diff(log(ny$spindx))
+nas_logret <- diff(log(nas$spindx))
+
+plot(sp$caldt[-length(sp$caldt)],sp_logret,type='l')
+plot(ny$caldt[-length(ny$caldt)],ny_logret)
+plor(nas$caldt[-length(nas$caldt)],nas_logret)
+```
+
+
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
