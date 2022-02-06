@@ -21,8 +21,7 @@ ny<-read.csv('Data/nyse.csv')
 nas<-read.csv('Data/nasdaq.csv')
 ```
 
-Now we will change the 'caldt' column to the Date format in order to plot the 
-time series for each index:
+Now we will change the 'caldt' column to the Date format in order to plot the time series for each index:
 
 ```{r}
 sp$caldt<-as.Date(sp$caldt, format="%d/%m/%Y")
@@ -35,8 +34,7 @@ str(nas)
 ```
 ### **Initial Plots**
 
-We will start off by plotting a basic time series for each index to get an idea
-of what our data looks like:
+We will start off by plotting a basic time series for each index to get an idea of what our data looks like:
 
 ```{r}
 plot(sp, type='l')
@@ -50,17 +48,56 @@ However, the stock price directly does not give us much information. Instead, we
 ```{r}
 sp_logret <- diff(log(sp$spindx))
 ny_logret <- diff(log(ny$spindx))
-nas_logret <- diff(log(nas$spindx))
+nas_logret <- diff(log(nas$ncindx))
 
 plot(sp$caldt[-length(sp$caldt)],sp_logret,type='l')
-plot(ny$caldt[-length(ny$caldt)],ny_logret)
-plor(nas$caldt[-length(nas$caldt)],nas_logret)
+plot(ny$caldt[-length(ny$caldt)],ny_logret, type='l')
+plot(nas$caldt[-length(nas$caldt)],nas_logret, type='l')
+```
+We can see that the returns average around 0% with very high variability during 2008-2009 (caused by the Great Recession) and during 2020 (caused by COVID-19).
+
+Let us now plot the density of the returns to try to understand the distribution which will be helpful when we will try to model the returns later one:
+
+```{r}
+plot(density(sp_logret))
+plot(density(ny_logret))
+plot(density(nas_logret))
+```
+The returns look like they follow a normal distribution. So, we will make qq-plots to further confirm this:
+
+```{r}
+qqnorm(sp_logret)
+qqline(sp_logret,col='red')
+
+qqnorm(ny_logret)
+qqline(ny_logret,col='red')
+
+qqnorm(nas_logret)
+qqline(nas_logret,col='red')
 ```
 
+ The log-returns have much heavier tails than the normal distribution, which suggests that it might follow a Student's t-distribution. Let's explore this fact':
+ 
+```{r}
+library(limma)
+qqt(sp_logret,df=Inf)
+???
+```
 
+```{r}
+acf(sp_logret)
+acf(ny_logret)
+acf(nas_logret)
+```
 
-Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+```{r}
+acf(sp_logret^2)
+acf(ny_logret^2)
+acf(nas_logret^2)
+```
+```{r}
+pacf(sp_logret)
+pacf(ny_logret)
+pacf(nas_logret)
+```
 
-When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
-
-The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
