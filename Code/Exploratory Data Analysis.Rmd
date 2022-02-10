@@ -1,6 +1,6 @@
 ---
 title: "Exploratory Data Analysis"
-output: html_notebook
+output: pdf_document
 ---
 
 ### **Reading and cleaning data**
@@ -16,9 +16,10 @@ Our stock data consists of the following indices between 2000 and 2021:
 -   NYSE100
 
 ```{r}
-sp<-read.csv('Data/sp500.csv')
-ny<-read.csv('Data/nyse.csv')
-nas<-read.csv('Data/nasdaq.csv')
+setwd("..")
+sp<-read.csv("Data/sp500.csv")
+ny<-read.csv("Data/nyse.csv")
+nas<-read.csv("Data/nasdaq.csv")
 ```
 
 Now we will change the 'caldt' column to the Date format in order to plot the time series for each index:
@@ -76,12 +77,10 @@ qqnorm(nas_logret)
 qqline(nas_logret,col='red')
 ```
 
- The log-returns have much heavier tails than the normal distribution, which suggests that it might follow a Student's t-distribution. Let's explore this fact':
+ The log-returns have much heavier tails than the normal distribution, which suggests that it might follow a Student's t-distribution. Let's explore this further:
  
 ```{r}
-library(limma)
-qqt(sp_logret,df=Inf)
-???
+
 ```
 
 ```{r}
