@@ -15,11 +15,14 @@ Our stock data consists of the following indices between 2000 and 2021:
 
 -   NYSE100
 
-```{r}
-setwd("..")
-sp<-read.csv("Data/sp500.csv")
+```{r, setup, include=FALSE}
+knitr::opts_knit$set(root.dir = "/Users/faidhihakim/github/Practitioners-Challenge-2022")
+sp<-read.csv("Data/nyse.csv")
+getwd()
 ny<-read.csv("Data/nyse.csv")
 nas<-read.csv("Data/nasdaq.csv")
+install.packages("moments")
+library(moments)
 ```
 
 Now we will change the 'caldt' column to the Date format in order to plot the time series for each index:
@@ -100,3 +103,6 @@ pacf(ny_logret)
 pacf(nas_logret)
 ```
 
+```{r}
+skewness(sp_logret)
+```
