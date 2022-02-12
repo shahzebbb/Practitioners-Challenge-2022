@@ -1,0 +1,15 @@
+---
+title: "R Notebook"
+output: pdf_document
+---
+
+
+
+```{r}
+setwd("..")
+sp<-read.csv("Data/sp_residual.csv")
+ny<-read.csv("Data/ny_residual.csv")
+nas<-read.csv("Data/nas_residual.csv")
+```
+
+

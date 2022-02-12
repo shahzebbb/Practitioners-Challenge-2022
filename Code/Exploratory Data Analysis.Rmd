@@ -3,6 +3,14 @@ title: "Exploratory Data Analysis"
 output: pdf_document
 ---
 
+### **Loading libraries**
+
+The below code chunk loads the libraries we will be using in our analysis:
+
+```{r, setup, include=FALSE}
+library(moments)
+```
+
 ### **Reading and cleaning data**
 
 First, we input our stock data.
@@ -15,14 +23,13 @@ Our stock data consists of the following indices between 2000 and 2021:
 
 -   NYSE100
 
-```{r, setup, include=FALSE}
-knitr::opts_knit$set(root.dir = "/Users/faidhihakim/github/Practitioners-Challenge-2022")
-sp<-read.csv("Data/nyse.csv")
-getwd()
+***Important***: Before running the code below, make sure your Knit directory is 'Document Directory'. This can be done by clicking the drop-down menu next to Knit, going to Knit directory and clicking on Document Directory.
+
+```{r}
+setwd("..")
+sp<-read.csv("Data/sp500.csv")
 ny<-read.csv("Data/nyse.csv")
 nas<-read.csv("Data/nasdaq.csv")
-install.packages("moments")
-library(moments)
 ```
 
 Now we will change the 'caldt' column to the Date format in order to plot the time series for each index:
@@ -36,15 +43,17 @@ str(sp)
 str(ny)
 str(nas)
 ```
+
 ### **Initial Plots**
 
-We will start off by plotting a basic time series for each index to get an idea of what our data looks like:
+We will start off by making a basic of stock price against time for each index, to get an idea of what our data looks like:
 
 ```{r}
 plot(sp, type='l')
 plot(ny, type='l')
 plot(nas, type='l')
 ```
+
 They all follow the same basic pattern, which is what we would expect, with the iconic fall in stock-price during the 2008-2009 period of the 'Great Recession'.
 
 However, the stock price directly does not give us much information. Instead, we will take at the **daily log stock returns**.
@@ -58,15 +67,17 @@ plot(sp$caldt[-length(sp$caldt)],sp_logret,type='l')
 plot(ny$caldt[-length(ny$caldt)],ny_logret, type='l')
 plot(nas$caldt[-length(nas$caldt)],nas_logret, type='l')
 ```
+
 We can see that the returns average around 0% with very high variability during 2008-2009 (caused by the Great Recession) and during 2020 (caused by COVID-19).
 
-Let us now plot the density of the returns to try to understand the distribution which will be helpful when we will try to model the returns later one:
+Let us now plot the density of the returns to try to understand the distribution which will be helpful when we try to model the returns later one:
 
 ```{r}
 plot(density(sp_logret))
 plot(density(ny_logret))
 plot(density(nas_logret))
 ```
+
 The returns look like they follow a normal distribution. So, we will make qq-plots to further confirm this:
 
 ```{r}
@@ -80,11 +91,55 @@ qqnorm(nas_logret)
 qqline(nas_logret,col='red')
 ```
 
- The log-returns have much heavier tails than the normal distribution, which suggests that it might follow a Student's t-distribution. Let's explore this further:
- 
-```{r}
+The log-returns have much heavier tails than the normal distribution, which suggests that it might follow a Student's t-distribution.
 
+### **Calculating summary statistics**
+
+Let us now obtain some sample statistics of our data. We will first use summary():
+
+```{r}
+summary(sp_logret)
+summary(ny_logret)
+summary(nas_logret)
 ```
+
+Now we will calculate the skewness of our data:
+
+```{r}
+skewness(sp_logret)
+skewness(ny_logret)
+skewness(nas_logret)
+```
+
+The skewness of our indexes are not equal to 0 which indicates that our log-returns might not be normally distributed. Let's also look at the tails of the distribution by calculating the sample kurtosis:
+
+```{r}
+kurtosis(sp_logret)
+kurtosis(ny_logret)
+kurtosis(nas_logret)
+```
+
+The sample kurtosis is much higher than 3 meaning our log-returns have much fatter tails than the normal distribution!
+
+### Doing basic time-series tests
+
+We will carrying out tests to check if our series is stationary and auto-correlated.
+
+We first test if our series is stationary:
+
+```{r}
+lag.length = 25
+
+Box.test(sp_logret, lag=lag.length, type="Ljung-Box")
+
+Box.test(ny_logret, lag=lag.length, type="Ljung-Box")
+
+Box.test(nas_logret, lag=lag.length, type="Ljung-Box")
+```
+
+The p-value is very small which means we reject the null hypothesis that our correlations are 0. This means our data is not stationary and we might not use a GARCH model on log-returns directly.
+
+We also plot the ACF of our indexes to see how our data is correlated:
 
 ```{r}
 acf(sp_logret)
@@ -92,17 +147,54 @@ acf(ny_logret)
 acf(nas_logret)
 ```
 
+As you can see above there is serious correlation on the first lag, again confirm that our series is not stationary.
+
+So instead, we will build a mean equation and try to convert our residuals into a stationary white noise.
+
+### Building a mean-equation
+
+```{r}
+sp_ar <- arima(sp_logret , order = c(1, 0, 1))
+sp_ar
+acf(residuals(sp_ar))
+
+ny_ar <- arima(ny_logret , order = c(1, 0, 1))
+ny_ar
+acf(residuals(ny_ar))
+
+nas_ar <- arima(nas_logret , order = c(1, 0, 1))
+nas_ar
+acf(residuals(nas_ar))
+```
+
+```{r}
+lag.length = 25
+
+Box.test(residuals(sp_ar), lag=lag.length, type="Ljung-Box")
+
+Box.test(residuals(ny_ar), lag=lag.length, type="Ljung-Box")
+
+Box.test(residuals(nas_ar), lag=lag.length, type="Ljung-Box")
+
+```
+
 ```{r}
 acf(sp_logret^2)
 acf(ny_logret^2)
 acf(nas_logret^2)
 ```
+
 ```{r}
 pacf(sp_logret)
 pacf(ny_logret)
 pacf(nas_logret)
 ```
 
+### Outputting Files
+
 ```{r}
-skewness(sp_logret)
+setwd('..')
+write.csv(residuals(sp_ar), 'Data/sp_residual.csv', row.names=T)
+write.csv(residuals(ny_ar), 'Data/ny_residual.csv', row.names=T)
+write.csv(residuals(nas_ar), 'Data/nas_residual.csv', row.names=T)
 ```
