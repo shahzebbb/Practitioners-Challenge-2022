@@ -156,7 +156,7 @@ So instead, we will build a mean equation and try to convert our residuals into 
 Change points are intervals within our data in which the mean is different than the mean of the rest of the data. We have used [H. Cho and P. Fryzlewicz (2021)'s](https://arxiv.org/abs/2011.13884) algorithm to detect change points in our data (the code can be found [here](https://github.com/haeran-cho/wcm.gsa)) and remove these change points from our data.
 
 ```{r}
-source('main.R')
+source('change_points.R')
 
 sp_changepoint<-wcm.gsa(sp_logret, double.cusum = TRUE)
 
