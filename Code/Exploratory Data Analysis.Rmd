@@ -151,18 +151,66 @@ As you can see above there is serious correlation on the first lag, again confir
 
 So instead, we will build a mean equation and try to convert our residuals into a stationary white noise.
 
+### Detecting change points in our log-returns and adjusting our data
+
+Change points are intervals within our data in which the mean is different than the mean of the rest of the data. We have used [H. Cho and P. Fryzlewicz (2021)'s](https://arxiv.org/abs/2011.13884) algorithm to detect change points in our data (the code can be found [here](https://github.com/haeran-cho/wcm.gsa)) and remove these change points from our data.
+
+```{r}
+source('main.R')
+
+sp_changepoint<-wcm.gsa(sp_logret, double.cusum = TRUE)
+
+
+mean_sp <- sp_logret * 0
+position <- c(0, sp_changepoint$cp, length(sp_logret))
+for(i in 1:(length(sp_changepoint$cp) + 1)){
+  int <- (position[i] + 1):position[i + 1]
+  mean_sp[int] <- mean(sp_logret[int])
+}
+
+sp_logret_changepoint <- sp_logret - mean_sp
+```
+
+```{r}
+ny_changepoint<-wcm.gsa(ny_logret, double.cusum = TRUE)
+
+
+mean_ny <- ny_logret * 0
+position <- c(0, ny_changepoint$cp, length(ny_logret))
+for(i in 1:(length(ny_changepoint$cp) + 1)){
+  int <- (position[i] + 1):position[i + 1]
+  mean_ny[int] <- mean(ny_logret[int])
+}
+
+ny_logret_changepoint <- ny_logret - mean_ny
+```
+
+```{r}
+nas_changepoint<-wcm.gsa(nas_logret, double.cusum = TRUE)
+
+
+mean_nas <- nas_logret * 0
+position <- c(0, nas_changepoint$cp, length(nas_logret))
+for(i in 1:(length(nas_changepoint$cp) + 1)){
+  int <- (position[i] + 1):position[i + 1]
+  mean_nas[int] <- mean(nas_logret[int])
+}
+
+nas_logret_changepoint <- nas_logret - mean_nas
+```
+
 ### Building a mean-equation
 
 ```{r}
-sp_ar <- arima(sp_logret , order = c(1, 0, 1))
+sp_ar <- arima(sp_logret, order = c(1, 0, 1))
 sp_ar
 acf(residuals(sp_ar))
 
-ny_ar <- arima(ny_logret , order = c(1, 0, 1))
+ny_ar <- arima(ny_logret, order = c(1, 0, 1))
 ny_ar
 acf(residuals(ny_ar))
 
-nas_ar <- arima(nas_logret , order = c(1, 0, 1))
+nas_ar <- arima(nas_logret, order = c(1, 0, 1))
 nas_ar
 acf(residuals(nas_ar))
 ```
@@ -190,11 +238,13 @@ pacf(ny_logret)
 pacf(nas_logret)
 ```
 
+
+
 ### Outputting Files
 
 ```{r}
 setwd('..')
-write.csv(residuals(sp_ar), 'Data/sp_residual.csv', row.names=T)
-write.csv(residuals(ny_ar), 'Data/ny_residual.csv', row.names=T)
-write.csv(residuals(nas_ar), 'Data/nas_residual.csv', row.names=T)
+write.csv(sp_logret_changepoint, 'Data/Processed/sp_logret_changepoint.csv', row.names=T)
+write.csv(ny_logret_changepoint, 'Data/Processed/ny_logret_changepoint.csv', row.names=T)
+write.csv(nas_logret_changepoint, 'Data/Processed/nas_logret_changepoint.csv', row.names=T)
 ```
