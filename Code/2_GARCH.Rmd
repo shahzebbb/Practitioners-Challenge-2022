@@ -9,19 +9,52 @@ library(rugarch)
 
 ```{r}
 setwd("..")
-sp<-read.csv("Data/sp500.csv")
-ny<-read.csv("Data/nyse.csv")
-nas<-read.csv("Data/nasdaq.csv")
-
-sp_logret <- diff(log(sp$spindx))
-ny_logret <- diff(log(ny$spindx))
-nas_logret <- diff(log(nas$ncindx))
+sp<-read.csv("Data/Processed/sp_logret_changepoint.csv")$x
+ny<-read.csv("Data/Processed/ny_logret_changepoint.csv")$x
+nas<-read.csv("Data/Processed/nas_logret_changepoint.csv")$x
 ```
 
 ```{r}
-test <- ugarchspec(variance.model=list(garchOrder=c(1,1)), mean.model=list(armaOrder=c(1,1)), distribution.model = "std")
+final.aic <- Inf
+final.order <- c(0,0)
+for (i in 1:4) for (j in 1:4) {
+ sp_model <- ugarchspec(variance.model=list(garchOrder=c(i,j)),
+             mean.model=list(armaOrder=c(1,0)), distribution.model = "std")
+ current.aic <- infocriteria(ugarchfit(spec=sp_model,data=sp,solver='hybrid'))[1]
+ if (current.aic < final.aic){
+    final.aic <- current.aic
+    final.order <- c(i,j)
+  }
+}
+final.order
+```
 
-sp_test=ugarchfit(spec=test, data=sp_logret)
-sp_test
+```{r}
+final.aic <- Inf
+final.order <- c(0,0)
+for (i in 1:4) for (j in 1:4) {
+ ny_model <- ugarchspec(variance.model=list(garchOrder=c(i,j)),
+             mean.model=list(armaOrder=c(1,0)), distribution.model = "std")
+ current.aic <- infocriteria(ugarchfit(spec=ny_model,data=ny,solver='hybrid'))[1]
+ if (current.aic < final.aic){
+    final.aic <- current.aic
+    final.order <- c(i,j)
+  }
+}
+final.order
+```
+```{r}
+final.aic <- Inf
+final.order <- c(0,0)
+for (i in 1:4) for (j in 1:4) {
+ nas_model <- ugarchspec(variance.model=list(garchOrder=c(i,j)),
+             mean.model=list(armaOrder=c(1,0)), distribution.model = "std")
+ current.aic <- infocriteria(ugarchfit(spec=nas_model,data=nas,solver='hybrid'))[1]
+ if (current.aic < final.aic){
+    final.aic <- current.aic
+    final.order <- c(i,j)
+  }
+}
+final.order
 ```
 
