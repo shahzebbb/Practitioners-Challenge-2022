@@ -55,6 +55,23 @@ for (i in 1:4) for (j in 1:4) {
     final.order <- c(i,j)
   }
 }
-final.order
+
+```
+
+```{r}
+sp_model <- ugarchspec(variance.model=list(garchOrder=c(3,1)),
+             mean.model=list(armaOrder=c(1,0)), distribution.model = "std")
+sp_fit <- ugarchfit(spec=sp_model,data=sp,solver='hybrid')
+ug_var <- sp_fit@fit$var
+
+ug_res2 <- (sp_fit@fit$residuals)^2
+
+plot(ug_res2, type = "l")
+lines(ug_var, col = "green")
+```
+
+```{r}
+ugfore <- ugarchforecast(sp_fit, n.ahead = 10)
+ugfore@forecast$sigmaFor
 ```
 

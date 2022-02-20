@@ -128,7 +128,7 @@ We will carrying out tests to check if our series is stationary and auto-correla
 We first test if our series is stationary:
 
 ```{r}
-lag.length = 25
+lag.length = 50
 
 Box.test(sp_logret, lag=lag.length, type="Ljung-Box")
 
@@ -202,21 +202,23 @@ nas_logret_changepoint <- nas_logret - mean_nas
 ### Building a mean-equation
 
 ```{r}
-sp_ar <- arima(sp_logret, order = c(1, 0, 1))
+sp_ar <- arima(sp_logret_changepoint, order = c(1, 0, 0))
 sp_ar
 acf(residuals(sp_ar))
 
-ny_ar <- arima(ny_logret, order = c(1, 0, 1))
+
+ny_ar <- arima(ny_logret_changepoint, order = c(1, 0, 0))
 ny_ar
 acf(residuals(ny_ar))
 
-nas_ar <- arima(nas_logret, order = c(1, 0, 1))
+
+nas_ar <- arima(nas_logret_changepoint, order = c(1, 0, 0))
 nas_ar
 acf(residuals(nas_ar))
 ```
 
 ```{r}
-lag.length = 25
+lag.length = 40
 
 Box.test(residuals(sp_ar), lag=lag.length, type="Ljung-Box")
 
