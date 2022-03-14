@@ -9,6 +9,8 @@ The below code chunk loads the libraries we will be using in our analysis:
 
 ```{r, setup, include=FALSE}
 library(moments)
+library(tseries)
+library(forecast)
 ```
 
 ### **Reading and cleaning data**
@@ -28,19 +30,29 @@ Our stock data consists of the following indices between 2000 and 2021:
 ```{r}
 setwd("..")
 sp<-read.csv("Data/sp500.csv")
-ny<-read.csv("Data/nyse.csv")
+dow<-read.csv("Data/dowjones.csv")
 nas<-read.csv("Data/nasdaq.csv")
 ```
 
-Now we will change the 'caldt' column to the Date format in order to plot the time series for each index:
+Now we will rename some columns and fixing Date and number formats:
 
 ```{r}
-sp$caldt<-as.Date(sp$caldt, format="%d/%m/%Y")
-ny$caldt<-as.Date(ny$caldt, format="%d/%m/%Y")
-nas$caldt<-as.Date(nas$caldt, format="%d/%m/%Y")
+#Renaming columns
+colnames(sp) <- c("Date","Price")
+colnames(dow) <- c("Date","Price")
+colnames(nas) <- c("Date","Price")
 
+#Fixing the Date format
+sp$Date<-as.Date(sp$Date, format="%d/%m/%Y")
+dow$Date<-as.Date(dow$Date, format="%d/%m/%Y")
+nas$Date<-as.Date(nas$Date, format="%d/%m/%Y")
+
+#Fixing numeric format
+dow$Price <- as.numeric(gsub(",", "", dow$Price))
+
+#Getting an overall idea of our datasets
 str(sp)
-str(ny)
+str(dow)
 str(nas)
 ```
 
@@ -49,8 +61,9 @@ str(nas)
 We will start off by making a basic of stock price against time for each index, to get an idea of what our data looks like:
 
 ```{r}
+#Plotting Price against Date for each index
 plot(sp, type='l')
-plot(ny, type='l')
+plot(dow, type='l')
 plot(nas, type='l')
 ```
 
@@ -59,13 +72,13 @@ They all follow the same basic pattern, which is what we would expect, with the 
 However, the stock price directly does not give us much information. Instead, we will take at the **daily log stock returns**.
 
 ```{r}
-sp_logret <- diff(log(sp$spindx))
-ny_logret <- diff(log(ny$spindx))
-nas_logret <- diff(log(nas$ncindx))
+sp_logret <- diff(log(sp$Price))
+dow_logret <- diff(log(dow$Price))
+nas_logret <- diff(log(nas$Price))
 
-plot(sp$caldt[-length(sp$caldt)],sp_logret,type='l')
-plot(ny$caldt[-length(ny$caldt)],ny_logret, type='l')
-plot(nas$caldt[-length(nas$caldt)],nas_logret, type='l')
+plot(sp$Date[-length(sp$Date)],sp_logret,type='l')
+plot(dow$Date[-length(dow$Date)],dow_logret, type='l')
+plot(nas$Date[-length(nas$Date)],nas_logret, type='l')
 ```
 
 We can see that the returns average around 0% with very high variability during 2008-2009 (caused by the Great Recession) and during 2020 (caused by COVID-19).
@@ -74,7 +87,7 @@ Let us now plot the density of the returns to try to understand the distribution
 
 ```{r}
 plot(density(sp_logret))
-plot(density(ny_logret))
+plot(density(dow_logret))
 plot(density(nas_logret))
 ```
 
@@ -99,7 +112,7 @@ Let us now obtain some sample statistics of our data. We will first use summary(
 
 ```{r}
 summary(sp_logret)
-summary(ny_logret)
+summary(dow_logret)
 summary(nas_logret)
 ```
 
@@ -107,7 +120,7 @@ Now we will calculate the skewness of our data:
 
 ```{r}
 skewness(sp_logret)
-skewness(ny_logret)
+skewness(dow_logret)
 skewness(nas_logret)
 ```
 
@@ -115,7 +128,7 @@ The skewness of our indexes are not equal to 0 which indicates that our log-retu
 
 ```{r}
 kurtosis(sp_logret)
-kurtosis(ny_logret)
+kurtosis(dow_logret)
 kurtosis(nas_logret)
 ```
 
@@ -132,7 +145,7 @@ lag.length = 50
 
 Box.test(sp_logret, lag=lag.length, type="Ljung-Box")
 
-Box.test(ny_logret, lag=lag.length, type="Ljung-Box")
+Box.test(dow_logret, lag=lag.length, type="Ljung-Box")
 
 Box.test(nas_logret, lag=lag.length, type="Ljung-Box")
 ```
@@ -147,11 +160,101 @@ acf(ny_logret)
 acf(nas_logret)
 ```
 
-As you can see above there is serious correlation on the first lag, again confirm that our series is not stationary.
+As you can see above there is serious correlation on the first lag, again confirm that our series is not stationary, hence we cannot apply a GARCH model directly on the log-returns.
 
-So instead, we will build a mean equation and try to convert our residuals into a stationary white noise.
+This means we have to build a mean-equation in such a way that the residuals should be stationary. We will also check certain conditions on our residuals such as if they are normal.
+
+### Building a mean-equation
+
+To build our mean equation we will be using auto.arima() which will automatically pick the parameters of the arima model that has the lowest AIC.
+
+```{r}
+sp_ar <- auto.arima(sp_logret , max.order = c(3 , 0 ,3) , trace = T,  max.d = 0, ic = 'aic')
+
+
+dow_ar <- auto.arima(dow_logret , max.order = c(3 , 0 ,3) , trace = T ,   max.d = 0, ic = 'aic')
+
+
+nas_ar <- auto.arima(nas_logret , max.order = c(3 , 0 ,3) , trace = T ,  max.d = 0, ic = 'aic')
+```
+
+So the best models are the following:
+
+-   **sp:** AR(1)
+
+-   **dow:** AR(1)
+
+-   **nas:** ARMA(3,0,2)
+
+You can see more detailed info below:
+
+```{r}
+sp_ar
+dow_ar
+nas_ar
+```
+
+### Doing diagnostic checks on residuals
+
+Let's first take a look at how our residuals look:
+
+```{r}
+sp_residuals <- sp_ar$residuals
+dow_residuals <- dow_ar$residuals
+nas_residuals <- nas_ar$residuals
+
+plot(sp_residuals, type='l')
+plot(dow_residuals, type='l')
+plot(nas_residuals, type='l')
+```
+
+Let's plot ACF and PACF of our residuals.
+
+```{r}
+acf(sp_residuals)
+acf(dow_residuals)
+acf(nas_residuals)
+```
+
+Obtaining some statistics:
+
+```{r}
+summary(sp_residuals)
+summary(dow_residuals)
+summary(nas_residuals)
+```
+
+```{r}
+skewness(sp_residuals)
+skewness(dow_residuals)
+skewness(nas_residuals)
+```
+
+```{r}
+kurtosis(sp_residuals)
+kurtosis(dow_residuals)
+kurtosis(nas_residuals)
+```
+
+We can see that our residuals are fairly symmetrical but it has very high kurtosis, meaning we agree with our previous stance that an appropriate distribution would be the Student's t-distribution.
+
+Now let's do a box test to check if our residuals are stationary.
+
+```{r}
+lag.length = 50
+
+Box.test(sp_residuals, lag=lag.length, fitdf=1, type="Ljung-Box")
+
+Box.test(dow_residuals, lag=lag.length, fitdf=1, type="Ljung-Box")
+
+Box.test(nas_residuals, lag=lag.length, fitdf=5, type="Ljung-Box")
+```
+
+No dice! Our data is still non-stationary.
 
 ### Detecting change points in our log-returns and adjusting our data
+
+As a last-ditch effort, we will adjust our data with change-points to try to make it stationary.
 
 Change points are intervals within our data in which the mean is different than the mean of the rest of the data. We have used [H. Cho and P. Fryzlewicz (2021)'s](https://arxiv.org/abs/2011.13884) algorithm to detect change points in our data (the code can be found [here](https://github.com/haeran-cho/wcm.gsa)) and remove these change points from our data.
 
@@ -160,29 +263,27 @@ source('change_points.R')
 
 sp_changepoint<-wcm.gsa(sp_logret, double.cusum = TRUE)
 
-
 mean_sp <- sp_logret * 0
 position <- c(0, sp_changepoint$cp, length(sp_logret))
 for(i in 1:(length(sp_changepoint$cp) + 1)){
   int <- (position[i] + 1):position[i + 1]
   mean_sp[int] <- mean(sp_logret[int])
 }
-
 sp_logret_changepoint <- sp_logret - mean_sp
 ```
 
 ```{r}
-ny_changepoint<-wcm.gsa(ny_logret, double.cusum = TRUE)
+dow_changepoint<-wcm.gsa(dow_logret, double.cusum = TRUE)
 
 
-mean_ny <- ny_logret * 0
-position <- c(0, ny_changepoint$cp, length(ny_logret))
-for(i in 1:(length(ny_changepoint$cp) + 1)){
+mean_dow <- dow_logret * 0
+position <- c(0, dow_changepoint$cp, length(dow_logret))
+for(i in 1:(length(dow_changepoint$cp) + 1)){
   int <- (position[i] + 1):position[i + 1]
-  mean_ny[int] <- mean(ny_logret[int])
+  mean_dow[int] <- mean(dow_logret[int])
 }
 
-ny_logret_changepoint <- ny_logret - mean_ny
+dow_logret_changepoint <- dow_logret - mean_dow
 ```
 
 ```{r}
@@ -199,54 +300,55 @@ for(i in 1:(length(nas_changepoint$cp) + 1)){
 nas_logret_changepoint <- nas_logret - mean_nas
 ```
 
-### Building a mean-equation
+Now, let us see if removing the change-points have made our data stationary
 
 ```{r}
-sp_ar <- arima(sp_logret_changepoint, order = c(1, 0, 0))
-sp_ar
-acf(residuals(sp_ar))
+lag.length = 50
+
+Box.test(sp_logret_changepoint, lag=lag.length, type="Ljung-Box")
+
+Box.test(dow_logret_changepoint, lag=lag.length, type="Ljung-Box")
+
+Box.test(nas_logret_changepoint, lag=lag.length, type="Ljung-Box")
+```
+
+The test says our data is non-stationary. Let's see if our residuals are stationary.
+
+```{r}
+sp_ar_changepoint <- auto.arima(sp_logret_changepoint , max.order = c(3 , 0 ,3) , trace = T,  max.d = 0, ic = 'aic')
 
 
-ny_ar <- arima(ny_logret_changepoint, order = c(1, 0, 0))
-ny_ar
-acf(residuals(ny_ar))
+dow_ar_changepoint <- auto.arima(dow_logret_changepoint , max.order = c(3 , 0 ,3) , trace = T ,   max.d = 0, ic = 'aic')
 
 
-nas_ar <- arima(nas_logret_changepoint, order = c(1, 0, 0))
-nas_ar
-acf(residuals(nas_ar))
+nas_ar_changepoint <- auto.arima(nas_logret_changepoint , max.order = c(3 , 0 ,3) , trace = T ,  max.d = 0, ic = 'aic')
 ```
 
 ```{r}
-lag.length = 40
+sp_residuals_changepoint <- sp_ar_changepoint$residuals
+dow_residuals_changepoint <- dow_ar_changepoint$residuals
+nas_residuals_changepoint <- nas_ar_changepoint$residuals
 
-Box.test(residuals(sp_ar), lag=lag.length, type="Ljung-Box")
+lag.length = 50
 
-Box.test(residuals(ny_ar), lag=lag.length, type="Ljung-Box")
+Box.test(sp_residuals_changepoint, lag=lag.length, fitdf=6, type="Ljung-Box")
 
-Box.test(residuals(nas_ar), lag=lag.length, type="Ljung-Box")
+Box.test(dow_residuals_changepoint, lag=lag.length, fitdf=1, type="Ljung-Box")
 
+Box.test(nas_residuals_changepoint, lag=lag.length, fitdf=5, type="Ljung-Box")
 ```
 
-```{r}
-acf(sp_logret^2)
-acf(ny_logret^2)
-acf(nas_logret^2)
-```
-
-```{r}
-pacf(sp_logret)
-pacf(ny_logret)
-pacf(nas_logret)
-```
-
-
+Does not work (Add comment on using non-stationary data and no changepoints)
 
 ### Outputting Files
 
 ```{r}
 setwd('..')
-write.csv(sp_logret_changepoint, 'Data/Processed/sp_logret_changepoint.csv', row.names=T)
-write.csv(ny_logret_changepoint, 'Data/Processed/ny_logret_changepoint.csv', row.names=T)
-write.csv(nas_logret_changepoint, 'Data/Processed/nas_logret_changepoint.csv', row.names=T)
+write.csv(sp_logret, 'Data/Processed/sp_logret.csv', row.names=T)
+write.csv(dow_logret, 'Data/Processed/dow_logret.csv', row.names=T)
+write.csv(nas_logret, 'Data/Processed/nas_logret.csv', row.names=T)
+
+write.csv(sp_residuals, 'Data/Processed/sp_residuals.csv', row.names=T)
+write.csv(dow_residuals, 'Data/Processed/dow_residuals.csv', row.names=T)
+write.csv(nas_residuals, 'Data/Processed/nas_residuals.csv', row.names=T)
 ```

@@ -1,77 +1,239 @@
 ---
-title: "R Notebook"
+title: "GARCH Modelling"
 output: pdf_document
 ---
 
-````{r, setup, include=FALSE}
+### Importing libraries
+
+```{r, setup, include=FALSE}
 library(rugarch)
-````
+```
+
+### Reading data
+
+**Important:** Before running the code below, make sure your Knit directory is 'Document Directory'. This can be done by clicking the drop-down menu next to Knit, going to Knit directory and clicking on Document Directory.
 
 ```{r}
 setwd("..")
-sp<-read.csv("Data/Processed/sp_logret_changepoint.csv")$x
-ny<-read.csv("Data/Processed/ny_logret_changepoint.csv")$x
-nas<-read.csv("Data/Processed/nas_logret_changepoint.csv")$x
+getwd()
+#Inputting log-returns
+sp_logret<-read.csv("Data/Processed/sp_logret.csv")$x
+dow_logret<-read.csv("Data/Processed/dow_logret.csv")$x
+nas_logret<-read.csv("Data/Processed/nas_logret.csv")$x
+
+#Inpputting residuals
+sp_residuals<-read.csv("Data/Processed/sp_residuals.csv")$x
+dow_residuals<-read.csv("Data/Processed/dow_residuals.csv")$x
+nas_residuals<-read.csv("Data/Processed/nas_residuals.csv")$x
 ```
 
+Separating data into train and test:
+
 ```{r}
-final.aic <- Inf
-final.order <- c(0,0)
-for (i in 1:4) for (j in 1:4) {
- sp_model <- ugarchspec(variance.model=list(garchOrder=c(i,j)),
-             mean.model=list(armaOrder=c(1,0)), distribution.model = "std")
- current.aic <- infocriteria(ugarchfit(spec=sp_model,data=sp,solver='hybrid'))[1]
- if (current.aic < final.aic){
-    final.aic <- current.aic
-    final.order <- c(i,j)
+sp_train_data <- sp_residuals[1:4000]
+sp_test_data <- sp_residuals[4001:length(sp_residuals)]
+
+dow_train_data <- dow_residuals[1:4000]
+dow_test_data <- dow_residuals[4001:length(dow_residuals)]
+
+nas_train_data <- nas_residuals[1:4000]
+nas_test_data <- nas_residuals[4001:length(nas_residuals)]
+```
+
+### Choosing the optimal parameters of GARCH(p,q):
+
+We will choose the GARCH(p,q) model which has the lowest AIC. We will also be using the Student's t-distribution to model our volatility.
+
+We will first define a function which we will run on our residuals data for each index. The function will go through a series of GARCH models and output the one with the lowest AIC.
+
+```{r}
+opm_garch <- function(x){
+  final.aic <- Inf
+  final.order <- c(0,0)
+  for (i in 1:4) for (j in 1:4){
+    x_model <-  ugarchspec(variance.model=list(garchOrder=c(i,j)),
+                mean.model=list(armaOrder=c(0,0)), distribution.model = "std")
+    current.aic <- infocriteria(ugarchfit(spec=x_model,data=x,solver='hybrid'))[1]
+    if (current.aic < final.aic){
+      final.aic <- current.aic
+      final.order <- c(i,j)
   }
 }
 final.order
-```
-
-```{r}
-final.aic <- Inf
-final.order <- c(0,0)
-for (i in 1:4) for (j in 1:4) {
- ny_model <- ugarchspec(variance.model=list(garchOrder=c(i,j)),
-             mean.model=list(armaOrder=c(1,0)), distribution.model = "std")
- current.aic <- infocriteria(ugarchfit(spec=ny_model,data=ny,solver='hybrid'))[1]
- if (current.aic < final.aic){
-    final.aic <- current.aic
-    final.order <- c(i,j)
-  }
 }
-final.order
 ```
+
 ```{r}
-final.aic <- Inf
-final.order <- c(0,0)
-for (i in 1:4) for (j in 1:4) {
- nas_model <- ugarchspec(variance.model=list(garchOrder=c(i,j)),
-             mean.model=list(armaOrder=c(1,0)), distribution.model = "std")
- current.aic <- infocriteria(ugarchfit(spec=nas_model,data=nas,solver='hybrid'))[1]
- if (current.aic < final.aic){
-    final.aic <- current.aic
-    final.order <- c(i,j)
+#opm_garch(sp_train_data)
+#opm_garch(dow_train_data)
+#opm_garch(nas_train_data)
+```
+
+The optimizer chose GARCH(2,1) to model the volatility for all of our indexes.
+
+Hence, we have the following models for each index's log-returns:
+
+-   **sp:** AR(1)+GARCH(2,1)
+
+-   **dow:** AR(1)+GARCH(2,1)
+
+-   **nas:** AR(3,0,2)+GARCH(2,1)
+
+We will now define our models for each index:
+
+```{r}
+sp.model = ugarchspec(variance.model = list(model = 'sGARCH' , garchOrder = c(2,1)),mean.model = list(armaOrder = c(0 , 0)))
+
+dow.model = ugarchspec(variance.model = list(model = 'sGARCH' , garchOrder = c(1,1)),mean.model = list(armaOrder = c(0 , 0)))
+
+nas.model = ugarchspec(variance.model = list(model = 'sGARCH' , garchOrder = c(1,1)),mean.model = list(armaOrder = c(0 , 0)))
+```
+
+### Forecasting on our model:
+
+```{r}
+#Models with no refitting
+sp.model.fit <- ugarchfit(sp.model, sp_residuals, solver = 'solnp', out.sample = 1031)
+sp.model.forecast <- ugarchforecast(sp.model.fit, n.ahead = 10, n.roll = 1030)
+
+dow.model.fit <- ugarchfit(dow.model, dow_residuals, solver = 'solnp', out.sample = 1031)
+dow.model.forecast <- ugarchforecast(dow.model.fit, n.ahead = 10, n.roll = 1030)
+
+nas.model.fit <- ugarchfit(nas.model, nas_residuals, solver = 'solnp', out.sample = 1031)
+nas.model.forecast <- ugarchforecast(nas.model.fit, n.ahead = 10, n.roll = 1030)
+
+options(scipen = 999)
+sp.model.fit@fit$matcoef
+dow.model.fit@fit$matcoef
+nas.model.fit@fit$matcoef
+
+
+#Models with refitting
+sp.model.forecast.refit <- ugarchroll(spec = sp.model , data = sp_residuals, n.start = 4000, refit.every = 100, refit.window = 'moving', solver='solnp')
+
+dow.model.forecast.refit <- ugarchroll(spec = sp.model , data = sp_residuals, n.start = 4000, refit.every = 100, refit.window = 'moving', solver='solnp')
+
+nas.model.forecast.refit <- ugarchroll(spec = sp.model , data = sp_residuals , n.start = 4000, refit.every = 100, refit.window = 'moving', solver='solnp')
+
+```
+
+Add more plots:
+
+```{r}
+plot(sp.model.forecast@forecast$sigmaFor[1,], type = 'l')
+plot(sp.model.forecast@forecast$sigmaFor[7,], type = 'l')
+plot(sp_test_data^2, type = 'l')
+```
+
+### VaR:
+
+No Refit:
+
+```{r}
+VaR_refit <- function(x.model,x_train_data,x_test_data,alpha){
+  x_shape <- fitdist(distribution = 'std' , x = x_train_data)$pars[3]
+  x_list <- rep(0,times=11)
+  for (i in (1:11)){
+    if (i==11){
+      mean = mean(x_train_data)
+      sigma = x.model@forecast$density[,'Sigma'][(100*(i-1)+1):length(x_test_data)]
+      VaR95_td <- mean+sigma*qdist(distribution='std', shape=x_shape, p=alpha)
+      x_list[i] <- sum(x_test_data[(100*(i-1)+1):length(x_test_data)] < VaR95_td)
+    } 
+    else {
+      mean = mean(x_test_data[(100*(i-1)+1):(100*i)])
+      sigma = x.model@forecast$density[,'Sigma'][(100*(i-1)+1):(100*i)]
+      VaR95_td <- mean+sigma*qdist(distribution='std', shape=x_shape, p=alpha)
+      x_list[i] <- sum(x_test_data[(100*(i-1)+1):(100*i)] < VaR95_td)
+    }
   }
+  return(x_list)
 }
-
 ```
 
 ```{r}
-sp_model <- ugarchspec(variance.model=list(garchOrder=c(3,1)),
-             mean.model=list(armaOrder=c(1,0)), distribution.model = "std")
-sp_fit <- ugarchfit(spec=sp_model,data=sp,solver='hybrid')
-ug_var <- sp_fit@fit$var
+sp_list <- VaR_refit(sp.model.forecast.refit,sp_train_data,sp_test_data,0.05)
+dow_list <- VaR_refit(dow.model.forecast.refit,dow_train_data,dow_test_data,0.05)
+nas_list <- VaR_refit(nas.model.forecast.refit,nas_train_data,nas_test_data,0.05)
 
-ug_res2 <- (sp_fit@fit$residuals)^2
 
-plot(ug_res2, type = "l")
-lines(ug_var, col = "green")
+mean(sp_list[1:10])
+mean(dow_list[1:10])
+mean(nas_list[1:10])
+```
+
+### Expected Shortfall:
+
+```{r}
+VaRalpha <- function(x.model,x_train_data,x_test_data,alpha,index,i){
+      x_shape <- fitdist(distribution = 'std' , x = x_train_data)$pars[3]
+      mean = mean(x_train_data)
+      sigma = x.model@forecast$density[,'Sigma'][(100*(i-1)+1):length(x_test_data)]
+      VaR95_td <- mean+sigma[index]*qdist(distribution='std', shape=x_shape, p=alpha)
+}
+ES <- function(x.model,x_train_data,x_test_data,alpha){
+  x_list <- rep(0,times=11)
+  for (i in (1:11)){
+    if (i==11){
+      x_integrate <- rep(0,length(x_test_data)-(100)*(i-1))
+      for (j in 1:(length(x_integrate))){
+        x_integrate[j] <- as.numeric(integrate(VaRalpha,lower=0,upper=0.05,x.model=x.model,x_train_data=x_train_data,x_test_data=x_test_data,index =j,i=i)[1])
+        x_list[i] <- mean(x_integrate)
+      }
+    } 
+    else {
+      x_integrate <- rep(0,(100))
+      for (j in 1:(length(x_integrate))){
+        x_integrate[j] <- as.numeric(integrate(VaRalpha,lower=0,upper=0.05,x.model=x.model,x_train_data=x_train_data,x_test_data=x_test_data, index=j, i=i)[1])
+        x_list[i] <- mean(x_integrate)
+      }
+    }
+    print(i)
+}
+return(x_list)
+}
 ```
 
 ```{r}
-ugfore <- ugarchforecast(sp_fit, n.ahead = 10)
-ugfore@forecast$sigmaFor
+
+getwd()
+sp_list_ES <- ES(sp.model.forecast.refit,sp_train_data,sp_test_data,0.05)
+dow_list_ES <- ES(dow.model.forecast.refit,dow_train_data,dow_test_data,0.05)
+nas_list_ES <- ES(nas.model.forecast.refit,nas_train_data,nas_test_data,0.05)
+
+setwd('..')
+write.csv(sp_list_ES, 'Data/Processed/sp_list_ES.csv', row.names=T)
+write.csv(dow_list_ES, 'Data/Processed/dow_list_ES.csv', row.names=T)
+write.csv(nas_list_ES, 'Data/Processed/nas_list_ES.csv', row.names=T)
 ```
 
+```{r}
+ES_actual <- function(x_test_data,alpha){
+  x_list <- rep(0,times=11)
+  for (i in (1:11)){
+    if (i==11){
+      x_data <- x_test_data[(100*(i-1)+1):length(x_test_data)]
+      x_list[i] <- mean(x_data[x_data <= quantile(x_data,alpha)])
+    } 
+    else {
+      x_data <- x_test_data[(100*(i-1)+1):(100*i)]
+      x_list[i] <- mean(x_data[x_data <= quantile(x_data,alpha)])
+    }
+  }
+  return(x_list)
+}
+```
+
+```{r}
+sp_list_ES_actual <- ES_actual(sp_test_data,0.05)
+dow_list_ES_actual <- ES_actual(dow_test_data,0.05)
+nas_list_ES_actual <- ES_actual(nas_test_data,0.05)
+```
+
+```{r}
+sp_ES_change <- mean((sp_list_ES_actual - sp_list_ES)^2)
+dow_ES_change <- mean((dow_list_ES_actual - dow_list_ES)^2)
+nas_ES_change <- mean((nas_list_ES_actual - nas_list_ES)^2)
+```
+
+### MSE:
