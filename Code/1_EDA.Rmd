@@ -1,6 +1,6 @@
 ---
 title: "Exploratory Data Analysis"
-output: pdf_document
+output: beamer_presentation 
 ---
 
 ### **Loading libraries**
