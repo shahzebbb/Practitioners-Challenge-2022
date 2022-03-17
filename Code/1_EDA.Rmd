@@ -17,11 +17,11 @@ library(forecast)
 
 First, we input our stock data.
 
-Our stock data consists of the following indices between 2000 and 2021:
+Our stock data consists of the following indices between 2000 and 2020:
 
 -   S&P500
 
--   NASDAQ
+-   DOWJONES
 
 -   NYSE100
 
@@ -97,8 +97,8 @@ The returns look like they follow a normal distribution. So, we will make qq-plo
 qqnorm(sp_logret)
 qqline(sp_logret,col='red')
 
-qqnorm(ny_logret)
-qqline(ny_logret,col='red')
+qqnorm(dow_logret)
+qqline(dow_logret,col='red')
 
 qqnorm(nas_logret)
 qqline(nas_logret,col='red')
@@ -156,7 +156,7 @@ We also plot the ACF of our indexes to see how our data is correlated:
 
 ```{r}
 acf(sp_logret)
-acf(ny_logret)
+acf(dow_logret)
 acf(nas_logret)
 ```
 
