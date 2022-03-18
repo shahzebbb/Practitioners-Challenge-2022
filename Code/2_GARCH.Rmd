@@ -80,9 +80,9 @@ final.order
 The below code is commented out as the algorithm takes some time to run and we don't need to run it as we already have obtained our previous parameters.
 
 ```{r}
-#opm_garch(sp_train_data)
-#opm_garch(dow_train_data)
-#opm_garch(nas_train_data)
+#opm_garch(sp_train_data_residuals)
+#opm_garch(dow_train_data_residuals)
+#opm_garch(nas_train_data_residuals)
 ```
 
 The optimizer chose GARCH(2,1) to model the volatility for all of our indexes.
@@ -110,11 +110,11 @@ nas.model = ugarchspec(variance.model = list(model = 'sGARCH' , garchOrder = c(2
 Now we will fit our model on training data and output the coefficients:
 
 ```{r}
-sp.model.fit <- ugarchfit(sp.model, sp_train_data, solver = 'solnp')
+sp.model.fit <- ugarchfit(sp.model, sp_residuals, solver = 'solnp', out.sample =1031)
 
-dow.model.fit <- ugarchfit(dow.model, dow_train_data, solver = 'solnp')
+dow.model.fit <- ugarchfit(dow.model, dow_residuals, solver = 'solnp', out.sample = 1283)
 
-nas.model.fit <- ugarchfit(nas.model, nas_train_data, solver = 'solnp')
+nas.model.fit <- ugarchfit(nas.model, nas_residuals, solver = 'solnp', out.sample=1283)
 
 options(scipen = 999)
 sp.model.fit@fit$matcoef
@@ -146,20 +146,20 @@ Let us also produce some plots to compare our fitted values against the squared 
 
 ```{r}
 ggplot() + 
-  geom_line(aes(x=(1:length(sp_train_data)), y = (sp_train_data)^2, color = "Squared Residuals")) +
-  geom_line(aes(x=(1:length(sp_train_data)),y=sp.model.fit@fit[["sigma"]], color = "Fitted Values"))+
+  geom_line(aes(x=(1:length(sp_train_data_residuals)), y = (sp_train_data_residuals)^2, color = "Squared Residuals")) +
+  geom_line(aes(x=(1:length(sp_train_data_residuals)),y=sp.model.fit@fit[["sigma"]], color = "Fitted Values"))+
   labs(x = "Index", y = "", color = "Legend", title = 'Plot of squared residuals against fitted for S&P') +
   scale_colour_manual(values = c("Squared Residuals"="black", "Fitted Values"="red"))
                                  
 ggplot() + 
-  geom_line(aes(x=(1:length(dow_train_data)), y = (dow_train_data)^2, color = "Squared Residuals")) +
-  geom_line(aes(x=(1:length(dow_train_data)),y=dow.model.fit@fit[["sigma"]], color = "Fitted Values"))+
+  geom_line(aes(x=(1:length(dow_train_data_residuals)), y = (dow_train_data_residuals)^2, color = "Squared Residuals")) +
+  geom_line(aes(x=(1:length(dow_train_data_residuals)),y=dow.model.fit@fit[["sigma"]], color = "Fitted Values"))+
   labs(x = "Index", y = "", color = "Legend", title = 'Plot of squared residuals against fitted for Dow') +
   scale_colour_manual(values = c("Squared Residuals"="black", "Fitted Values"="red"))
 
 ggplot() + 
-  geom_line(aes(x=(1:length(nas_train_data)), y = (nas_train_data)^2, color = "Squared Residuals")) +
-  geom_line(aes(x=(1:length(nas_train_data)),y=nas.model.fit@fit[["sigma"]], color = "Fitted Values"))+
+  geom_line(aes(x=(1:length(nas_train_data_residuals)), y = (nas_train_data_residuals)^2, color = "Squared Residuals")) +
+  geom_line(aes(x=(1:length(nas_train_data_residuals)),y=nas.model.fit@fit[["sigma"]], color = "Fitted Values"))+
   labs(x = "Index", y = "", color = "Legend", title = 'Plot of squared residuals against fitted for NASDAQ') +
   scale_colour_manual(values = c("Squared Residuals"="black", "Fitted Values"="red"))
 ```
@@ -174,6 +174,10 @@ sp.model.forecast <- ugarchroll(spec = sp.model , data = sp_residuals, n.start =
 dow.model.forecast <- ugarchroll(spec = dow.model , data = dow_residuals, n.start = 4000, refit.every = 100, refit.window = 'moving', solver='solnp')
 
 nas.model.forecast <- ugarchroll(spec = dow.model , data = nas_residuals , n.start = 4000, refit.every = 100, refit.window = 'moving', solver='solnp')
+```
+
+```{r}
+sp.model.forecast.seven <- ugarchforecast(sp.model.fit, sp_residuals, n.ahead=7,n.roll=1031)@forecast[["sigmaFor"]]
 ```
 
 Let us produce some plots to check how our model does
