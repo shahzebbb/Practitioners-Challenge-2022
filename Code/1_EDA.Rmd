@@ -29,7 +29,7 @@ Our stock data consists of the following indices between 2000 and 2020:
 
 ```{r}
 setwd("..")
-sp<-read.csv("Data/sp500.csv")
+sp <- read.csv('Data/sp500.csv')
 dow<-read.csv("Data/dowjones.csv")
 nas<-read.csv("Data/nasdaq.csv")
 ```
@@ -58,13 +58,15 @@ str(nas)
 
 ### **Initial Plots**
 
-We will start off by making a basic of stock price against time for each index, to get an idea of what our data looks like:
+We will start off by making a graph of index price against time for each indices, to get an idea of what our data looks like.
 
 ```{r}
 #Plotting Price against Date for each index
-plot(sp, type='l')
-plot(dow, type='l')
-plot(nas, type='l')
+plot(sp, col='red',type='l',ylim=c(1000,32000))
+lines(dow, col='blue')
+lines(nas, col='green')
+legend("topleft", legend=c("SP500", "DowJones", "NASDAQ"),
+       col=c("red", "blue", "green"), lty=c(1,1,1))
 ```
 
 They all follow the same basic pattern, which is what we would expect, with the iconic fall in stock-price during the 2008-2009 period of the 'Great Recession'.
@@ -76,9 +78,10 @@ sp_logret <- diff(log(sp$Price))
 dow_logret <- diff(log(dow$Price))
 nas_logret <- diff(log(nas$Price))
 
-plot(sp$Date[-length(sp$Date)],sp_logret,type='l')
-plot(dow$Date[-length(dow$Date)],dow_logret, type='l')
-plot(nas$Date[-length(nas$Date)],nas_logret, type='l')
+plot(sp$Date[-length(sp$Date)],sp_logret,type='l',xlab="Date",ylab="SP500")
+#title(main="LOG RETURN",cex.main=2.2)
+plot(dow$Date[-length(dow$Date)],dow_logret, type='l',xlab="Date",ylab="DJ")
+plot(nas$Date[-length(nas$Date)],nas_logret, type='l',xlab="Date",ylab="NASDAQ")
 ```
 
 We can see that the returns average around 0% with very high variability during 2008-2009 (caused by the Great Recession) and during 2020 (caused by COVID-19).
@@ -86,21 +89,21 @@ We can see that the returns average around 0% with very high variability during 
 Let us now plot the density of the returns to try to understand the distribution which will be helpful when we try to model the returns later one:
 
 ```{r}
-plot(density(sp_logret))
-plot(density(dow_logret))
-plot(density(nas_logret))
+plot(density(sp_logret),ylab="SP500",main="Density SP Log_Ret")
+plot(density(dow_logret),ylab="DJ",main="Density DJ Log_Ret")
+plot(density(nas_logret),ylab="NASDAQ",main="Density NAS Log_Ret")
 ```
 
 The returns look like they follow a normal distribution. So, we will make qq-plots to further confirm this:
 
 ```{r}
-qqnorm(sp_logret)
+qqnorm(sp_logret,main="QPlot SP Log_Ret")
 qqline(sp_logret,col='red')
 
-qqnorm(dow_logret)
+qqnorm(dow_logret,main="QPlot DJ Log_Ret")
 qqline(dow_logret,col='red')
 
-qqnorm(nas_logret)
+qqnorm(nas_logret,main="QPlot DJ Log_Ret")
 qqline(nas_logret,col='red')
 ```
 
@@ -132,14 +135,7 @@ kurtosis(dow_logret)
 kurtosis(nas_logret)
 ```
 
-The sample kurtosis is much higher than 3 meaning our log-returns have much fatter tails than the normal distribution!
-
-### Doing basic time-series tests
-
-We will carrying out tests to check if our series is stationary and auto-correlated.
-
-We first test if our series is stationary:
-
+ 
 ```{r}
 lag.length = 50
 
@@ -155,9 +151,9 @@ The p-value is very small which means we reject the null hypothesis that our cor
 We also plot the ACF of our indexes to see how our data is correlated:
 
 ```{r}
-acf(sp_logret)
-acf(dow_logret)
-acf(nas_logret)
+acf(sp_logret,main="SP Log_Ret")
+acf(dow_logret,main="DJ Log_Ret")
+acf(nas_logret,main="NAS Log_Ret")
 ```
 
 As you can see above there is serious correlation on the first lag, again confirm that our series is not stationary, hence we cannot apply a GARCH model directly on the log-returns.
@@ -275,7 +271,6 @@ sp_logret_changepoint <- sp_logret - mean_sp
 ```{r}
 dow_changepoint<-wcm.gsa(dow_logret, double.cusum = TRUE)
 
-
 mean_dow <- dow_logret * 0
 position <- c(0, dow_changepoint$cp, length(dow_logret))
 for(i in 1:(length(dow_changepoint$cp) + 1)){
@@ -288,7 +283,6 @@ dow_logret_changepoint <- dow_logret - mean_dow
 
 ```{r}
 nas_changepoint<-wcm.gsa(nas_logret, double.cusum = TRUE)
-
 
 mean_nas <- nas_logret * 0
 position <- c(0, nas_changepoint$cp, length(nas_logret))
@@ -339,6 +333,7 @@ Box.test(nas_residuals_changepoint, lag=lag.length, fitdf=5, type="Ljung-Box")
 ```
 
 Does not work (Add comment on using non-stationary data and no changepoints)
+Because of both of our data 
 
 ### Outputting Files
 
