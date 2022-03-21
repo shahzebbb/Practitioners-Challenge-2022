@@ -110,11 +110,18 @@ nas.model = ugarchspec(variance.model = list(model = 'sGARCH' , garchOrder = c(2
 Now we will fit our model on training data and output the coefficients:
 
 ```{r}
-sp.model.fit <- ugarchfit(sp.model, sp_residuals, solver = 'solnp', out.sample =1031)
+sp.model.fit <- ugarchfit(sp.model, sp_residuals, solver = 'solnp',out.sample=1283)
 
-dow.model.fit <- ugarchfit(dow.model, dow_residuals, solver = 'solnp', out.sample = 1283)
+dow.model.fit <- ugarchfit(dow.model, dow_residuals, solver = 'solnp', out.sample = 1285)
 
 nas.model.fit <- ugarchfit(nas.model, nas_residuals, solver = 'solnp', out.sample=1283)
+
+test <- sp.model.fit@fit[["sigma"]]
+
+write.csv(test, 'spgarchsigma.csv')
+
+
+
 
 options(scipen = 999)
 sp.model.fit@fit$matcoef
@@ -176,28 +183,24 @@ dow.model.forecast <- ugarchroll(spec = dow.model , data = dow_residuals, n.star
 nas.model.forecast <- ugarchroll(spec = dow.model , data = nas_residuals , n.start = 4000, refit.every = 100, refit.window = 'moving', solver='solnp')
 ```
 
-```{r}
-sp.model.forecast.seven <- ugarchforecast(sp.model.fit, sp_residuals, n.ahead=7,n.roll=1031)@forecast[["sigmaFor"]]
-```
-
 Let us produce some plots to check how our model does
 
 ```{r}
 ggplot() + 
-  geom_line(aes(x=(1:length(sp_test_data)), y = (sp_test_data)^2, color = "Squared Residuals")) +
-  geom_line(aes(x=(1:length(sp_test_data)),y=sp.model.forecast@forecast$density[,'Sigma'], color = "Fitted Values"))+
+  geom_line(aes(x=(1:length(sp_test_data_residuals)), y = (sp_test_data_residuals)^2, color = "Squared Residuals")) +
+  geom_line(aes(x=(1:length(sp_test_data_residuals)),y=sp.model.forecast@forecast$density[,'Sigma'], color = "Fitted Values"))+
   labs(x = "Index", y = "", color = "Legend", title = 'Plot of squared residuals against forecast for S&P') +
   scale_colour_manual(values = c("Squared Residuals"="black", "Fitted Values"="red"))
                                  
 ggplot() + 
-  geom_line(aes(x=(1:length(dow_test_data)), y = (dow_test_data)^2, color = "Squared Residuals")) +
-  geom_line(aes(x=(1:length(dow_test_data)),y=dow.model.forecast@forecast$density[,'Sigma'], color = "Fitted Values"))+
+  geom_line(aes(x=(1:length(dow_test_data_residuals)), y = (dow_test_data_residuals)^2, color = "Squared Residuals")) +
+  geom_line(aes(x=(1:length(dow_test_data_residuals)),y=dow.model.forecast@forecast$density[,'Sigma'], color = "Fitted Values"))+
   labs(x = "Index", y = "", color = "Legend", title = 'Plot of squared residuals against forecast for Dow') +
   scale_colour_manual(values = c("Squared Residuals"="black", "Fitted Values"="red"))
 
 ggplot() + 
-  geom_line(aes(x=(1:length(nas_test_data)), y = (nas_test_data)^2, color = "Squared Residuals")) +
-  geom_line(aes(x=(1:length(nas_test_data)),y=nas.model.forecast@forecast$density[,'Sigma'], color = "Fitted Values"))+
+  geom_line(aes(x=(1:length(nas_test_data_residuals)), y = (nas_test_data_residuals)^2, color = "Squared Residuals")) +
+  geom_line(aes(x=(1:length(nas_test_data_residuals)),y=nas.model.forecast@forecast$density[,'Sigma'], color = "Fitted Values"))+
   labs(x = "Index", y = "", color = "Legend", title = 'Plot of squared residuals against forecast for NASDAQ') +
   scale_colour_manual(values = c("Squared Residuals"="black", "Fitted Values"="red"))
 ```
@@ -246,7 +249,7 @@ sp_list <- VaR(sp.model.forecast,sp_train_data_residuals,sp_test_data_residuals,
 dow_list <- VaR(dow.model.forecast,dow_train_data_residuals,dow_test_data_residuals,dow_test_data_logret,dow_ar,0.05)
 nas_list <- VaR(nas.model.forecast,nas_train_data_residuals,nas_test_data_residuals,nas_test_data_logret,nas_ar,0.05)
 
-mean(sp_list[1:10])
+mean(sp_list[1:12])
 mean(dow_list[1:12])
 mean(nas_list[1:12])
 ```
@@ -305,18 +308,18 @@ return(x_list)
 ```{r}
 setwd('..')
 
-#sp_list_ES <- ES(sp.model.forecast,sp_train_data,sp_test_data,sp_ar,0.05)
-#write.csv(sp_list_ES, 'Data/Processed/sp_list_ES.csv', row.names=T)
+sp_list_ES <- ES(sp.model.forecast,sp_train_data_residuals,sp_test_data_residuals,sp_ar,0.05)
+write.csv(sp_list_ES, 'Data/Processed/sp_list_ES.csv', row.names=T)
 
-#dow_list_ES <- ES(dow.model.forecast,dow_train_data,dow_test_data,dow_ar,0.05)
-#write.csv(dow_list_ES, 'Data/Processed/dow_list_ES.csv', row.names=T)
+dow_list_ES <- ES(dow.model.forecast,dow_train_data_residuals,dow_test_data_residuals,dow_ar,0.05)
+write.csv(dow_list_ES, 'Data/Processed/dow_list_ES.csv', row.names=T)
 
-#nas_list_ES <- ES(nas.model.forecast,nas_train_data,nas_test_data,dow_ar,0.05)
-#write.csv(nas_list_ES, 'Data/Processed/nas_list_ES.csv', row.names=T)
+nas_list_ES <- ES(nas.model.forecast,nas_train_data,nas_test_data,dow_ar,0.05)
+write.csv(nas_list_ES, 'Data/Processed/nas_list_ES.csv', row.names=T)
 
-sp_residuals<-read.csv("Data/Processed/sp_list_ES.csv")$x
-dow_residuals<-read.csv("Data/Processed/dow_list_ES.csv")$x
-nas_residuals<-read.csv("Data/Processed/nas_list_ES.csv")$x
+sp_list_ES<-read.csv("Data/Processed/sp_list_ES.csv")$x
+dow_list_ES<-read.csv("Data/Processed/dow_list_ES.csv")$x
+nas_list_ES<-read.csv("Data/Processed/nas_list_ES.csv")$x
 ```
 
 We will compute the actual ES of the test data by averaging all the log-return prices which are less than 5% quantile.
@@ -340,9 +343,9 @@ ES_actual <- function(x_test_data,alpha){
 ```
 
 ```{r}
-sp_list_ES_actual <- ES_actual(sp_test_data,0.05)
-dow_list_ES_actual <- ES_actual(dow_test_data,0.05)
-nas_list_ES_actual <- ES_actual(nas_test_data,0.05)
+sp_list_ES_actual <- ES_actual(sp_test_data_residuals,0.05)
+dow_list_ES_actual <- ES_actual(dow_test_data_residuals,0.05)
+nas_list_ES_actual <- ES_actual(nas_test_data_residuals,0.05)
 ```
 
 We calculate the difference between the ES our model predicted and actual ES.

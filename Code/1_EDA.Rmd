@@ -109,7 +109,7 @@ qqline(nas_logret,col='red')
 
 The log-returns have much heavier tails than the normal distribution, which suggests that it might follow a Student's t-distribution.
 
-### **Calculating summary statistics**
+### **Calculating descriptive statistics**
 
 Let us now obtain some sample statistics of our data. We will first use summary():
 
@@ -135,7 +135,14 @@ kurtosis(dow_logret)
 kurtosis(nas_logret)
 ```
 
- 
+Let's also calculate the mean of our log returns as well:
+
+```{r}
+mean(sp_logret)
+mean(dow_logret)
+mean(nas_logret)
+```
+
 ```{r}
 lag.length = 50
 
@@ -230,6 +237,23 @@ skewness(nas_residuals)
 kurtosis(sp_residuals)
 kurtosis(dow_residuals)
 kurtosis(nas_residuals)
+```
+
+```{r}
+mean(sp_residuals)
+mean(dow_residuals)
+mean(nas_residuals)
+```
+
+```{r}
+qqnorm(sp_residuals,main="QPlot SP Log_Ret")
+qqline(sp_residuals,col='red')
+
+qqnorm(dow_residuals,main="QPlot DJ Log_Ret")
+qqline(dow_residuals,col='red')
+
+qqnorm(nas_logret,main="QPlot DJ Log_Ret")
+qqline(nas_logret,col='red')
 ```
 
 We can see that our residuals are fairly symmetrical but it has very high kurtosis, meaning we agree with our previous stance that an appropriate distribution would be the Student's t-distribution.
@@ -332,8 +356,7 @@ Box.test(dow_residuals_changepoint, lag=lag.length, fitdf=1, type="Ljung-Box")
 Box.test(nas_residuals_changepoint, lag=lag.length, fitdf=5, type="Ljung-Box")
 ```
 
-Does not work (Add comment on using non-stationary data and no changepoints)
-Because of both of our data 
+Does not work (Add comment on using non-stationary data and no changepoints) Because of both of our data
 
 ### Outputting Files
 
