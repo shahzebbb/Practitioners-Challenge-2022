@@ -1,0 +1,128 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+setwd("..")
+#Inputting log-returns
+sp_logret<-read.csv("Data/Processed/sp_logret.csv")$x
+dow_logret<-read.csv("Data/Processed/dow_logret.csv")$x
+nas_logret<-read.csv("Data/Processed/nas_logret.csv")$x
+
+#Inputting residuals
+sp_residuals<-read.csv("Data/Processed/sp_residuals.csv")$x
+dow_residuals<-read.csv("Data/Processed/dow_residuals.csv")$x
+nas_residuals<-read.csv("Data/Processed/nas_residuals.csv")$x
+
+#Calculating AR
+sp_ar <- sp_logret - sp_residuals
+dow_ar <- dow_logret - dow_residuals
+nas_ar <- nas_logret - nas_residuals
+```
+
+```{r}
+sp_train_data_residuals <- sp_residuals[1:4000]
+sp_test_data_residuals <- sp_residuals[4001:length(sp_residuals)]
+
+dow_train_data_residuals <- dow_residuals[1:4000]
+dow_test_data_residuals <- dow_residuals[4001:length(dow_residuals)]
+
+nas_train_data_residuals <- nas_residuals[1:4000]
+nas_test_data_residuals <- nas_residuals[4001:length(nas_residuals)]
+
+sp_train_data_logret <- sp_logret[1:4000]
+sp_test_data_logret <- sp_logret[4001:length(sp_logret)]
+
+dow_train_data_logret <- dow_logret[1:4000]
+dow_test_data_logret <- dow_logret[4001:length(dow_logret)]
+
+nas_train_data_logret <- nas_logret[1:4000]
+nas_test_data_logret <- nas_logret[4001:length(nas_logret)]
+```
+
+```{r}
+VaR <- function(sigma,x_train_data_residuals,x_test_data_residuals,x_test_data_logret,x_ar,alpha){
+  x_shape <- fitdist(distribution = 'std' , x = x_train_data_residuals)$pars[3]
+  n = ceiling(length(x_test_data_residuals)/100)
+  x_list <- rep(0,times=n)
+  for (i in (1:n)){
+    mean = na.omit(x_ar[4001:length(x_ar)][(100*(i-1)+1):(100*i)])
+    VaR95_td <- mean+sigma*qdist(distribution='std', shape=x_shape, p=alpha)
+    x_list[i] <- sum(na.omit(x_test_data_logret[(100*(i-1)+1):(100*i)]) < VaR95_td)
+  }
+  return(x_list)
+}
+```
+
+```{r}
+VaRalpha <- function(sigma,x_train_data,x_test_data,x_ar,alpha,j,i){
+        x_shape <- fitdist(distribution = 'std' , x = x_train_data)$pars[3]
+        mean = x_ar[4001:length(x_ar)][(100*(i-1)+1):(100*i)]
+        VaR95_td <- mean[j]+sigma[j]*qdist(distribution='std', shape=x_shape, p=alpha)
+}
+
+
+ES <- function(sigma,x_train_data,x_test_data,x_ar,alpha){
+  n = ceiling(length(x_test_data)/100)
+  x_list <- rep(0,times=n)
+  for (i in (1:n)){
+    if (i==n){
+      x_integrate <- rep(0,length(x_test_data)-(100)*(i-1))
+      for (j in 1:(length(x_integrate))){
+        x_integrate[j] <- as.numeric(integrate(VaRalpha,lower=0,upper=alpha,sigma=sigma,x_train_data=x_train_data,x_test_data=x_test_data,x_ar=x_ar,j=j,i=i)[1])
+        x_list[i] <- mean(x_integrate)
+      }
+    } 
+    else {
+      x_integrate <- rep(0,(100))
+      for (j in 1:(length(x_integrate))){
+        x_integrate[j] <- as.numeric(integrate(VaRalpha,lower=0,upper=alpha,sigma=sigma,x_train_data=x_train_data,x_test_data=x_test_data,x_ar=x_ar, j=j, i=i)[1])/(alpha)
+        x_list[i] <- mean(x_integrate)
+      }
+    }
+    print(i)
+}
+return(x_list)
+}
+```
+
+```{r}
+ES_actual <- function(logpred,x_test_data_logret,alpha){
+  n <- ceiling(length(logpred)/100)
+  x_list <- rep(0,times=n)
+  for (i in (1:n)){
+    if (i==n){
+      x_data <- logpred[(100*(i-1)+1):length(logpred)]
+      VaR <- quantile(x_data,alpha)
+      x_list[i] <- sum(na.omit(x_test_data_logret[(100*(i-1)+1):(100*i)]) < VaR95)
+    } 
+    else {
+      x_data <- x_test_data[(100*(i-1)+1):(100*i)]
+      VaR <- quantile(x_data,alpha)
+      x_list[i] <- sum(na.omit(x_test_data_logret[(100*(i-1)+1):(100*i)]) < VaR95)
+    }
+  }
+  return(x_list)
+}
+```
+
+
+```{r}
+ES_actual <- function(x_test_data,alpha){
+  n <- ceiling(length(x_test_data)/100)
+  x_list <- rep(0,times=n)
+  for (i in (1:n)){
+    if (i==n){
+      x_data <- x_test_data[(100*(i-1)+1):length(x_test_data)]
+      x_list[i] <- mean(x_data[x_data <= quantile(x_data,alpha)])
+    } 
+    else {
+      x_data <- x_test_data[(100*(i-1)+1):(100*i)]
+      x_list[i] <- mean(x_data[x_data <= quantile(x_data,alpha)])
+    }
+  }
+  return(x_list)
+}
+```
+

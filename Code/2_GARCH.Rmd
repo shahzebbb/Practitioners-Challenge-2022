@@ -110,13 +110,16 @@ nas.model = ugarchspec(variance.model = list(model = 'sGARCH' , garchOrder = c(2
 Now we will fit our model on training data and output the coefficients:
 
 ```{r}
-sp.model.fit <- ugarchfit(sp.model, sp_residuals, solver = 'solnp',out.sample=1283)
+sp.model.fit <- ugarchfit(sp.model, sp_residuals, solver = 'solnp', out.sample=1283)
 
-dow.model.fit <- ugarchfit(dow.model, dow_residuals, solver = 'solnp', out.sample = 1285)
+dow.model.fit <- ugarchfit(dow.model, dow_residuals, solver = 'solnp', out.sample=1285)
 
 nas.model.fit <- ugarchfit(nas.model, nas_residuals, solver = 'solnp', out.sample=1283)
 
-
+#setwd('..')
+#write.csv(sp.model.fit@fit[["sigma"]], 'Data/Processed/sp_sigma.csv', row.names=T)
+#write.csv(dow.model.fit@fit[["sigma"]], 'Data/Processed/dow_sigma.csv', row.names=T)
+#write.csv(nas.model.fit@fit[["sigma"]], 'Data/Processed/nas_sigma.csv', row.names=T)
 
 
 options(scipen = 999)
@@ -304,14 +307,14 @@ return(x_list)
 ```{r}
 setwd('..')
 
-sp_list_ES <- ES(sp.model.forecast,sp_train_data_residuals,sp_test_data_residuals,sp_ar,0.05)
-write.csv(sp_list_ES, 'Data/Processed/sp_list_ES.csv', row.names=T)
+#sp_list_ES <- ES(sp.model.forecast,sp_train_data_residuals,sp_test_data_residuals,sp_ar,0.05)
+#write.csv(sp_list_ES, 'Data/Processed/sp_list_ES.csv', row.names=T)
 
-dow_list_ES <- ES(dow.model.forecast,dow_train_data_residuals,dow_test_data_residuals,dow_ar,0.05)
-write.csv(dow_list_ES, 'Data/Processed/dow_list_ES.csv', row.names=T)
+#dow_list_ES <- ES(dow.model.forecast,dow_train_data_residuals,dow_test_data_residuals,dow_ar,0.05)
+#write.csv(dow_list_ES, 'Data/Processed/dow_list_ES.csv', row.names=T)
 
-nas_list_ES <- ES(nas.model.forecast,nas_train_data_residuals,nas_test_data_residuals,dow_ar,0.05)
-write.csv(nas_list_ES, 'Data/Processed/nas_list_ES.csv', row.names=T)
+#nas_list_ES <- ES(nas.model.forecast,nas_train_data_residuals,nas_test_data_residuals,dow_ar,0.05)
+#write.csv(nas_list_ES, 'Data/Processed/nas_list_ES.csv', row.names=T)
 
 sp_list_ES<-read.csv("Data/Processed/sp_list_ES.csv")$x
 dow_list_ES<-read.csv("Data/Processed/dow_list_ES.csv")$x
