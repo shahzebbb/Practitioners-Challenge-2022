@@ -342,9 +342,9 @@ ES_actual <- function(x_test_data,alpha){
 ```
 
 ```{r}
-sp_list_ES_actual <- ES_actual(sp_test_data_residuals,0.05)
-dow_list_ES_actual <- ES_actual(dow_test_data_residuals,0.05)
-nas_list_ES_actual <- ES_actual(nas_test_data_residuals,0.05)
+sp_list_ES_actual <- ES_actual(sp_test_data_logret,0.05)
+dow_list_ES_actual <- ES_actual(dow_test_data_logret,0.05)
+nas_list_ES_actual <- ES_actual(nas_test_data_logret,0.05)
 ```
 
 We calculate the difference between the ES our model predicted and actual ES.

@@ -356,7 +356,7 @@ Box.test(dow_residuals_changepoint, lag=lag.length, fitdf=1, type="Ljung-Box")
 Box.test(nas_residuals_changepoint, lag=lag.length, fitdf=5, type="Ljung-Box")
 ```
 
-Does not work (Add comment on using non-stationary data and no changepoints) Because of both of our data
+Removing change points looks to have not changed the p-values all that much. Our data is still auto-correlated. Therefore, we will keep the log-returns with the change points intact as that data will be more reliable to train an LSTM with and will be easier to infer on.
 
 ### Outputting Files
 

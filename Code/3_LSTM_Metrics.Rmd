@@ -2,6 +2,11 @@
 title: "R Notebook"
 output: html_notebook
 ---
+```{r}
+library(rugarch)
+library(ggplot2)
+```
+
 
 ```{r}
 setwd("..")
@@ -14,6 +19,16 @@ nas_logret<-read.csv("Data/Processed/nas_logret.csv")$x
 sp_residuals<-read.csv("Data/Processed/sp_residuals.csv")$x
 dow_residuals<-read.csv("Data/Processed/dow_residuals.csv")$x
 nas_residuals<-read.csv("Data/Processed/nas_residuals.csv")$x
+
+#Inputting predicted squared residuals
+sp_residuals_predict <- sqrt(abs(read.csv('Data/Processed/spPredictSQ.csv')[2])$X0)
+dow_residuals_predict <- sqrt(abs(read.csv('Data/Processed/dowPredictSQ.csv')[2])$X0)
+nas_residuals_predict <- sqrt(abs(read.csv('Data/Processed/nasPredictSQ.csv')[2])$X0)
+
+#Inputting predicted GARCH sigma
+sp_sigmas_predict <- abs(read.csv('Data/Processed/spGarchPredict.csv')[2]$X0)
+dow_sigmas_predict <- abs(read.csv('Data/Processed/dowGarchPredict.csv')[2]$X0)
+nas_sigmas_predict <- abs(read.csv('Data/Processed/nasGarchPredict.csv')[2]$X0)
 
 #Calculating AR
 sp_ar <- sp_logret - sp_residuals
@@ -39,15 +54,24 @@ dow_test_data_logret <- dow_logret[4001:length(dow_logret)]
 
 nas_train_data_logret <- nas_logret[1:4000]
 nas_test_data_logret <- nas_logret[4001:length(nas_logret)]
+
+sp_residuals_predict <- sp_residuals_predict[4001:length(sp_residuals_predict)]
+dow_residuals_predict <- dow_residuals_predict[4001:length(dow_residuals_predict)]
+nas_residuals_predict <- nas_residuals_predict[4001:length(nas_residuals_predict)]
+
+sp_sigmas_predict <- sp_sigmas_predict[4001:length(sp_sigmas_predict)]
+dow_sigmas_predict <- dow_sigmas_predict[4001:length(dow_sigmas_predict)]
+nas_sigmas_predict <- nas_sigmas_predict[4001:length(nas_sigmas_predict)]
 ```
 
 ```{r}
-VaR <- function(sigma,x_train_data_residuals,x_test_data_residuals,x_test_data_logret,x_ar,alpha){
+VaR <- function(sigma_pred,x_train_data_residuals,x_test_data_residuals,x_test_data_logret,x_ar,alpha){
   x_shape <- fitdist(distribution = 'std' , x = x_train_data_residuals)$pars[3]
   n = ceiling(length(x_test_data_residuals)/100)
   x_list <- rep(0,times=n)
-  for (i in (1:n)){
+  for (i in (1:(n))){
     mean = na.omit(x_ar[4001:length(x_ar)][(100*(i-1)+1):(100*i)])
+    sigma = na.omit(sigma_pred[(100*(i-1)+1):(100*i)])
     VaR95_td <- mean+sigma*qdist(distribution='std', shape=x_shape, p=alpha)
     x_list[i] <- sum(na.omit(x_test_data_logret[(100*(i-1)+1):(100*i)]) < VaR95_td)
   }
@@ -56,28 +80,40 @@ VaR <- function(sigma,x_train_data_residuals,x_test_data_residuals,x_test_data_l
 ```
 
 ```{r}
-VaRalpha <- function(sigma,x_train_data,x_test_data,x_ar,alpha,j,i){
+sp_list_VaR_sigma <- VaR(sp_sigmas_predict,sp_train_data_residuals,sp_test_data_residuals,sp_test_data_logret,sp_ar,0.05)
+dow_list_VaR_sigma <- VaR(dow_sigmas_predict,dow_train_data_residuals,dow_test_data_residuals,dow_test_data_logret,dow_ar,0.05)
+nas_list_VaR_sigma <- VaR(nas_sigmas_predict,nas_train_data_residuals,nas_test_data_residuals,nas_test_data_logret,nas_ar,0.05)
+
+mean(sp_list_VaR_sigma[1:12])
+mean(dow_list_VaR_sigma[1:12])
+mean(nas_list_VaR_sigma[1:12])
+```
+
+
+```{r}
+VaRalpha <- function(sigma_pred,x_train_data,x_test_data,x_ar,alpha,j,i){
         x_shape <- fitdist(distribution = 'std' , x = x_train_data)$pars[3]
         mean = x_ar[4001:length(x_ar)][(100*(i-1)+1):(100*i)]
+        sigma = sigma_pred[(100*(i-1)+1):(100*i)]
         VaR95_td <- mean[j]+sigma[j]*qdist(distribution='std', shape=x_shape, p=alpha)
 }
 
 
-ES <- function(sigma,x_train_data,x_test_data,x_ar,alpha){
+ES <- function(sigma_pred,x_train_data,x_test_data,x_ar,alpha){
   n = ceiling(length(x_test_data)/100)
   x_list <- rep(0,times=n)
   for (i in (1:n)){
     if (i==n){
       x_integrate <- rep(0,length(x_test_data)-(100)*(i-1))
       for (j in 1:(length(x_integrate))){
-        x_integrate[j] <- as.numeric(integrate(VaRalpha,lower=0,upper=alpha,sigma=sigma,x_train_data=x_train_data,x_test_data=x_test_data,x_ar=x_ar,j=j,i=i)[1])
+        x_integrate[j] <- as.numeric(integrate(VaRalpha,lower=0,upper=alpha,sigma_pred=sigma_pred,x_train_data=x_train_data,x_test_data=x_test_data,x_ar=x_ar,j=j,i=i)[1])
         x_list[i] <- mean(x_integrate)
       }
     } 
     else {
       x_integrate <- rep(0,(100))
       for (j in 1:(length(x_integrate))){
-        x_integrate[j] <- as.numeric(integrate(VaRalpha,lower=0,upper=alpha,sigma=sigma,x_train_data=x_train_data,x_test_data=x_test_data,x_ar=x_ar, j=j, i=i)[1])/(alpha)
+        x_integrate[j] <- as.numeric(integrate(VaRalpha,lower=0,upper=alpha,sigma_pred=sigma_pred,x_train_data=x_train_data,x_test_data=x_test_data,x_ar=x_ar, j=j, i=i)[1])/(alpha)
         x_list[i] <- mean(x_integrate)
       }
     }
@@ -88,28 +124,60 @@ return(x_list)
 ```
 
 ```{r}
-ES_actual <- function(logpred,x_test_data_logret,alpha){
+setwd('..')
+
+#sp_list_ES_sigma_LSTM <- ES(sp_sigmas_predict,sp_train_data_residuals,sp_test_data_residuals,sp_ar,0.05)
+#write.csv(sp_list_ES_sigma_LSTM, 'Data/Processed/sp_list_ES_sigma_LSTM.csv', row.names=T)
+
+#dow_list_ES_sigma_LSTM <- ES(dow_sigmas_predict,dow_train_data_residuals,dow_test_data_residuals,dow_ar,0.05)
+#write.csv(dow_list_ES_sigma_LSTM, 'Data/Processed/dow_list_ES_sigma_LSTM.csv', row.names=T)
+
+#nas_list_ES_sigma_LSTM <- ES(nas_sigmas_predict,nas_train_data_residuals,nas_test_data_residuals,dow_ar,0.05)
+#write.csv(nas_list_ES_sigma_LSTM, 'Data/Processed/nas_list_ES_sigma_LSTM.csv', row.names=T)
+
+sp_list_ES_sigma_LSTM<-read.csv("Data/Processed/sp_list_ES_sigma_LSTM.csv")$x
+dow_list_ES_sigma_LSTM<-read.csv("Data/Processed/dow_list_ES_sigma_LSTM.csv")$x
+nas_list_ES_sigma_LSTM<-read.csv("Data/Processed/nas_list_ES_sigma_LSTM.csv")$x
+```
+```{r}
+sp_logret_pred <- sp_ar[4001:length(sp_ar)]+sp_residuals_predict
+dow_logret_pred <- dow_ar[4001:length(dow_ar)]+dow_residuals_predict
+nas_logret_pred <- nas_ar[4001:length(nas_ar)]+nas_residuals_predict
+```
+
+```{r}
+VaR_pred <- function(logpred,x_test_data_logret,alpha){
   n <- ceiling(length(logpred)/100)
   x_list <- rep(0,times=n)
   for (i in (1:n)){
     if (i==n){
       x_data <- logpred[(100*(i-1)+1):length(logpred)]
       VaR <- quantile(x_data,alpha)
-      x_list[i] <- sum(na.omit(x_test_data_logret[(100*(i-1)+1):(100*i)]) < VaR95)
+      x_list[i] <- sum(na.omit(x_test_data_logret[(100*(i-1)+1):(100*i)]) < VaR)
     } 
     else {
-      x_data <- x_test_data[(100*(i-1)+1):(100*i)]
+      x_data <- logpred[(100*(i-1)+1):(100*i)]
       VaR <- quantile(x_data,alpha)
-      x_list[i] <- sum(na.omit(x_test_data_logret[(100*(i-1)+1):(100*i)]) < VaR95)
+      x_list[i] <- sum(na.omit(x_test_data_logret[(100*(i-1)+1):(100*i)]) < VaR)
     }
   }
   return(x_list)
 }
 ```
 
+```{r}
+sp_logret_pred_VaR <- VaR_pred(sp_logret_pred,sp_test_data_logret,0.05)
+dow_logret_pred_VaR <- VaR_pred(dow_logret_pred,dow_test_data_logret,0.05)
+nas_logret_pred_VaR <- VaR_pred(nas_logret_pred,nas_test_data_logret,0.05)
+
+mean(sp_logret_pred_VaR[1:12])
+mean(dow_logret_pred_VaR[1:12])
+mean(nas_logret_pred_VaR[1:12])
+```
+
 
 ```{r}
-ES_actual <- function(x_test_data,alpha){
+ES_historical <- function(x_test_data,alpha){
   n <- ceiling(length(x_test_data)/100)
   x_list <- rep(0,times=n)
   for (i in (1:n)){
@@ -124,5 +192,25 @@ ES_actual <- function(x_test_data,alpha){
   }
   return(x_list)
 }
+```
+
+```{r}
+sp_ES_historical <- ES_historical(sp_logret_pred,0.05)
+dow_ES_historical <- ES_historical(dow_logret_pred,0.05)
+nas_ES_historical <- ES_historical(nas_logret_pred,0.05)
+
+sp_ES_historical_actual <- ES_historical(sp_test_data_logret,0.05)
+dow_ES_historical_actual <- ES_historical(dow_test_data_logret,0.05)
+nas_ES_historical_actual <- ES_historical(nas_test_data_logret,0.05)
+
+sp_ES_change_historical <- mean((sp_ES_historical_actual - sp_ES_historical)^2)
+dow_ES_change_historical <- mean((dow_ES_historical_actual - dow_ES_historical)^2)
+nas_ES_change_historical<- mean((nas_ES_historical_actual - nas_ES_historical)^2)
+```
+
+```{r}
+sp_ES_change_sigma <- mean((sp_list_ES_sigma_LSTM - sp_ES_historical_actual)^2)
+dow_ES_change_sigma <- mean((dow_list_ES_sigma_LSTM - dow_ES_historical_actual)^2)
+nas_ES_change_sigma <- mean((nas_list_ES_sigma_LSTM - nas_ES_historical_actual)^2)
 ```
 
