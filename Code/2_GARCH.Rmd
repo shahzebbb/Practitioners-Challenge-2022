@@ -150,7 +150,7 @@ $$
 
 Let us also produce some plots to compare our fitted values against the squared residuals:
 
-```{r}
+```{r test}
 ggplot() + 
   geom_line(aes(x=(1:length(sp_train_data_residuals)), y = (sp_train_data_residuals)^2, color = "Squared Residuals")) +
   geom_line(aes(x=(1:length(sp_train_data_residuals)),y=sp.model.fit@fit[["sigma"]], color = "Fitted Values"))+
@@ -218,7 +218,7 @@ $$
 VaR_{t|t-1}(\alpha) = \mu_{t} + \hat{\sigma}_{t|t-1} * F^{-1}(\alpha)
 $$
 
-where $\hat{\sigma}_{t|t-1}$ is the conditional standard deviation given the information at $t-1$, $F^{−1}(\alpha)$ is the inverse PDF function of t-distribution at the significance level $\alpha$ and $\mu_t$ is the value of the mean equation at time $t$
+where $\hat{\sigma}_{t|t-1}$ is the conditional standard deviation given the information at $t-1$, F^-1($\alpha$) is the inverse PDF function of t-distribution at the significance level $\alpha$ and $\mu_t$ is the value of the mean equation at time $t$
 
 In order to test our VaR estimates we will use a measure introduced in Kupiec (1995).
 
